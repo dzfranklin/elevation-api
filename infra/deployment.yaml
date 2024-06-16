@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elevation-api
+  namespace: pt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elevation-api
+  template:
+    metadata:
+      labels:
+        app: elevation-api
+    spec:
+      containers:
+        - name: elevation-api
+          image: ghcr.io/dzfranklin/elevation-api:latest
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
