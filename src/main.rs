@@ -23,7 +23,6 @@ async fn main() -> eyre::Result<()> {
     }
     let app_env = dotenvy::var("APP_ENV").unwrap_or_else(|_| "production".into());
     if app_env == "development" {
-        color_eyre::install()?;
         tracing_subscriber::fmt::init();
     } else {
         let layer = tracing_subscriber::fmt::layer().json().with_target(false);
