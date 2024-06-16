@@ -1,8 +1,16 @@
+#![cfg_attr(test, feature(assert_matches))]
+
 use std::time::Instant;
 
-use gdal::{errors::GdalError, raster::ResampleAlg, GeoTransformEx};
+use gdal::{
+    errors::{CplErrType, GdalError},
+    raster::ResampleAlg,
+    GeoTransformEx,
+};
 
 const MAX_POINTS: usize = 10_000;
+
+const CPLE_ILLEGAL_ARG: i32 = 5;
 
 pub struct ElevationDataset {
     ds: gdal::Dataset,
@@ -20,6 +28,7 @@ pub enum LookupError {
 
 impl ElevationDataset {
     pub fn open(path: &str) -> eyre::Result<Self> {
+        maybe_init_gdal();
         let ds = gdal::Dataset::open(path)?;
         Ok(Self { ds })
     }
@@ -49,16 +58,14 @@ impl ElevationDataset {
                 Ok(buf) => {
                     vals.push(buf.data[0]);
                 }
-                Err(GdalError::CplError {
-                    class: 3,
-                    number: 5,
-                    msg,
-                }) => {
-                    tracing::warn!(%msg, %x, %y, "out of supported bounds");
-                    metrics::counter!("lookup_out_of_bounds").increment(1);
-                    return Err(LookupError::OutOfBounds((x, y)));
-                }
                 Err(e) => {
+                    if let GdalError::CplError { class, number, .. } = e {
+                        if class == CplErrType::Failure as u32 && number == CPLE_ILLEGAL_ARG {
+                            tracing::info!(%x, %y, "out of bounds");
+                            metrics::counter!("lookup_out_of_bounds").increment(1);
+                            return Err(LookupError::OutOfBounds((x, y)));
+                        }
+                    }
                     return Err(LookupError::GdalError(e));
                 }
             }
@@ -70,10 +77,32 @@ impl ElevationDataset {
     }
 }
 
+fn maybe_init_gdal() {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    INIT.call_once(|| {
+        gdal::config::set_error_handler(|class, number, msg| match class {
+            CplErrType::None => (),
+            CplErrType::Debug => {
+                tracing::debug!("gdal debug: {number}: {msg}");
+            }
+            CplErrType::Warning => {
+                tracing::warn!("gdal warning: {number}: {msg}");
+            }
+            CplErrType::Failure => {
+                if number == CPLE_ILLEGAL_ARG {
+                    return;
+                }
+                tracing::warn!("gdal failure: {number}: {msg}");
+            }
+            CplErrType::Fatal => {
+                tracing::error!("gdal fatal: {number}: {msg}");
+            }
+        });
+    });
+}
+
 #[cfg(test)]
 mod tests {
-    #![feature(assert_matches)]
-
     use super::*;
     use std::assert_matches::assert_matches;
 

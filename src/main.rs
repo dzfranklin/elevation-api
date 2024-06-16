@@ -14,14 +14,25 @@ use axum::{
 use elevation_api::ElevationDataset;
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use tokio::signal;
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     if let Err(err) = dotenvy::from_filename(".env") {
         eprintln!("Skipping loading .env: {}", err);
     }
-    color_eyre::install()?;
-    tracing_subscriber::fmt::init();
+    let app_env = dotenvy::var("APP_ENV").unwrap_or_else(|_| "production".into());
+    if app_env == "development" {
+        color_eyre::install()?;
+        tracing_subscriber::fmt::init();
+    } else {
+        let layer = tracing_subscriber::fmt::layer().json().with_target(false);
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::EnvFilter::from_default_env())
+            .with(layer)
+            .init();
+    }
+
     let metrics = setup_metrics()?;
 
     let host: String = dotenvy::var("HOST").unwrap_or_else(|_| "0.0.0.0".into());
