@@ -13,11 +13,12 @@ use axum::{
 };
 use elevation_api::ElevationDataset;
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
+use tokio::signal;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     if let Err(err) = dotenvy::from_filename(".env") {
-        eprintln!("Failed to load .env: {}", err);
+        eprintln!("Skipping loading .env: {}", err);
     }
     color_eyre::install()?;
     tracing_subscriber::fmt::init();
@@ -43,7 +44,9 @@ async fn main() -> eyre::Result<()> {
     tracing::info!("Starting server on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
     Ok(())
 }
 
@@ -131,4 +134,29 @@ async fn track_metrics(req: Request, next: Next) -> impl IntoResponse {
     metrics::histogram!("http_requests_duration_seconds", &labels).record(latency);
 
     response
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+    tracing::info!("Shutting down");
 }
