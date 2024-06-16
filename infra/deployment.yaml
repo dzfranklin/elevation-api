@@ -22,7 +22,21 @@ spec:
           env:
             - name: PORT
               value: "8000"
+            - name: APP_ENV
+              value: "production"
+            - name: ELEVATION_DATASET
+              value: "/data/cop90/index.vrt"
+            - name: RUST_LOG
+              value: "info"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /health
               port: http
+      volumes:
+        - name: data
+          hostPath:
+            path: /elevation_data
