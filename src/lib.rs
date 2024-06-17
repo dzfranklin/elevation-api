@@ -38,9 +38,13 @@ impl ElevationDataset {
             return Err(LookupError::TooManyPoints);
         }
 
+        let total_counter = metrics::counter!("lookup_total");
+        let oob_counter = metrics::counter!("lookup_out_of_bounds");
+        let points_histogram = metrics::histogram!("lookup_points");
+
         let start = Instant::now();
-        metrics::counter!("lookup_total").increment(1);
-        metrics::histogram!("lookup_points").record(points.len() as f64);
+        total_counter.increment(1);
+        points_histogram.record(points.len() as f64);
         let band = self.ds.rasterband(1).map_err(LookupError::GdalError)?;
         let t = self.ds.geo_transform().map_err(LookupError::GdalError)?;
 
@@ -56,13 +60,19 @@ impl ElevationDataset {
             );
             match res {
                 Ok(buf) => {
+                    let val = buf.data[0];
+                    if val == i32::MAX {
+                        tracing::info!(%x, %y, "out of bounds");
+                        oob_counter.increment(1);
+                        return Err(LookupError::OutOfBounds((x, y)));
+                    }
                     vals.push(buf.data[0]);
                 }
                 Err(e) => {
                     if let GdalError::CplError { class, number, .. } = e {
                         if class == CplErrType::Failure as u32 && number == CPLE_ILLEGAL_ARG {
                             tracing::info!(%x, %y, "out of bounds");
-                            metrics::counter!("lookup_out_of_bounds").increment(1);
+                            oob_counter.increment(1);
                             return Err(LookupError::OutOfBounds((x, y)));
                         }
                     }
