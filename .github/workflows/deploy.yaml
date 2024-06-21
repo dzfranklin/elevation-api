@@ -46,7 +46,7 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
-      - uses: azure/k8s-set-context@v1
+      - uses: azure/k8s-set-context@v4
         with:
           method: service-account
           k8s-url: "https://stork:6443"
