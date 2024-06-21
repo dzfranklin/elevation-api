@@ -1,8 +1,0 @@
-{
-  "yaml.schemas": {
-    "Kubernetes": [
-      "pod.*.yaml"
-    ],
-    "https://json.schemastore.org/github-workflow.json": "file:///Users/daniel/projects/elevation-api/.github/workflows/deploy.yaml"
-  }
-}

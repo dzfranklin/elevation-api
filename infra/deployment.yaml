@@ -1,46 +1,35 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: elevation-api
-  namespace: pt
+  name: api
+  namespace: elevation
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: elevation-api
+      app: api
   template:
     metadata:
       labels:
-        app: elevation-api
-      annotations:
-        k8s.grafana.com/scrape: "true"
-        k8s.grafana.com/metrics.portName: "http"
-        k8s.grafana.com/job: "elevation-api"
+        app: api
     spec:
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+              claimName: elevation-pvc
       containers:
-        - name: elevation-api
+        - name: api
           image: ghcr.io/dzfranklin/elevation-api:latest
+          env:
+            - name: MERIT_DEM_FIXED1
+              value: /data/merit_dem_fixed1/merit_dem_fixed1.vrt
           ports:
             - name: http
-              containerPort: 8000
-          env:
-            - name: PORT
-              value: "8000"
-            - name: APP_ENV
-              value: "production"
-            - name: ELEVATION_DATASET
-              value: "/data/cop90/index.vrt"
-            - name: RUST_LOG
-              value: "info"
+              containerPort: 80
           volumeMounts:
             - name: data
               mountPath: /data
-              readOnly: true
           livenessProbe:
             httpGet:
               path: /health
               port: http
-      volumes:
-        - name: data
-          hostPath:
-            path: /elevation_data

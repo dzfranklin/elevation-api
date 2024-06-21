@@ -1,20 +1,29 @@
-FROM --platform=arm64 rust:bookworm as builder
+FROM python
 
-WORKDIR /build
+WORKDIR /app
 
-RUN apt-get update && apt-get install -y pkg-config libclang-dev libgdal-dev
+RUN apt update && apt install -y gdal-bin libgdal-dev
 
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {println!(\"Hello, world!\");}" > src/main.rs
-RUN cargo build --release
+ENV \
+  PIP_NO_CACHE_DIR=off \
+  PIP_DISABLE_PIP_VERSION_CHECK=on \
+  PIP_DEFAULT_TIMEOUT=100 \
+  POETRY_NO_INTERACTION=1 \
+  POETRY_NO_ANSI=1 \
+  POETRY_VIRTUALENVS_CREATE=false \
+  POETRY_CACHE_DIR='/var/cache/pypoetry' \
+  POETRY_HOME='/usr/local'
 
-COPY src src
-RUN cargo build --release
+RUN pip install poetry==1.8.3
 
-FROM --platform=arm64 debian:bookworm-slim
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --only main --no-root --no-directory
 
-RUN apt-get update && apt-get install -y libssl-dev libgdal-dev ca-certificates
+COPY . .
+RUN poetry install --only main
 
-COPY --from=builder /build/target/release/elevation-api /
-
-ENTRYPOINT ["/elevation-api"]
+ENTRYPOINT ["uvicorn", "main:app", \
+  "--host", "0.0.0.0", \
+  "--port", "80", \
+  "--proxy-headers",
+]

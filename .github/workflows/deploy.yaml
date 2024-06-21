@@ -1,4 +1,7 @@
 name: Deploy
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 on:
   push:
     branches: [main]
@@ -53,11 +56,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deploy to k8s
-        uses: azure/k8s-deploy@v1
+        uses: azure/k8s-deploy@v5
         with:
-          namespace: pt
-          manifests: |
-            infra/deployment.yaml
-            infra/service.yaml
+          namespace: elevation
+          manifests: ./infra
           images: |
             ghcr.io/${{ github.repository }}:${{ github.sha }}

@@ -1,5 +1,4 @@
 .env
-.env.*
-*.local
-.DS_Store
-
+/nb
+/test_samples
+/tools
