@@ -25,6 +25,8 @@ spec:
               value: /data/merit/merit_dem_fixed1.vrt
             - name: DEM_OS50
               value: /data/os/os_terrain_50_fixed1.tif
+            - name: DEM_USGS13
+              value: /data/usgs/USGS_Seamless_DEM_13.vrt
           ports:
             - name: http
               containerPort: 80

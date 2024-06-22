@@ -11,11 +11,13 @@ import attributions
 import docs
 from attributions import Attribution
 from dataset import Dataset
+from dataset.source import Source
 
 
 class Settings(BaseSettings):
     dem_merit: str
     dem_os50: str
+    dem_usgs13: str
 
     model_config = SettingsConfigDict(env_file=".env")
 
@@ -35,12 +37,14 @@ app = FastAPI(
 
 logger = logging.getLogger(__name__)
 
+# TODO: Add referer header, reduce timeout
+
 dataset = Dataset(
     sources=[
-        ("os50", settings.dem_os50),
-        ("merit", settings.dem_merit),
+        Source("os50", settings.dem_os50, scale_factor=0.1),
+        Source("usgs13", settings.dem_usgs13),
+        Source("merit", settings.dem_merit, scale_factor=0.1),
     ],
-    base_attribution=["geoboundaries"],
 )
 
 
