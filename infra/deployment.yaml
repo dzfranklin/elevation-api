@@ -21,8 +21,10 @@ spec:
         - name: api
           image: ghcr.io/dzfranklin/elevation-api:latest
           env:
-            - name: MERIT_DEM_FIXED1
-              value: /data/merit_dem_fixed1/merit_dem_fixed1.vrt
+            - name: DEM_MERIT
+              value: /data/merit/merit_dem_fixed1.vrt
+            - name: DEM_OS50
+              value: /data/os/os_terrain_50_fixed1.tif
           ports:
             - name: http
               containerPort: 80

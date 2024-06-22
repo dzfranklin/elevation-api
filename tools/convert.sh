@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This converted a singled tif file into fixed point and compresses it
+
 if [[ $# == 0 ]]; then
         echo "Usage: convert.sh orig.tif"
         exit 1

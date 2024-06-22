@@ -1,9 +1,9 @@
-import attribution
+import attributions
 
 description = f"""
 Use this API to lookup elevation data for coordinates.
 
-**All coordinates are in [WGS84](https://epsg.io/4326) and specified in longitude, latitude order.**
+**Elevations are in meters. coordinates are in [WGS84](https://epsg.io/4326) and specified in longitude, latitude order.**
 
 ## License
 
@@ -16,5 +16,5 @@ use. You can contact me at daniel@danielzfranklin.org if you have any questions.
 
 This API includes data from:
 
-{attribution.html}
+{attributions.html}
 """

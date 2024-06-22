@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, Optional
+from typing import Annotated, Sequence
 
 from fastapi import FastAPI, Query
 from fastapi.responses import RedirectResponse
@@ -7,14 +7,15 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from starlette.responses import PlainTextResponse
 
-import attribution
+import attributions
 import docs
-from attribution import Attribution
+from attributions import Attribution
 from dataset import Dataset
 
 
 class Settings(BaseSettings):
-    merit_dem_fixed1: str
+    dem_merit: str
+    dem_os50: str
 
     model_config = SettingsConfigDict(env_file=".env")
 
@@ -34,7 +35,13 @@ app = FastAPI(
 
 logger = logging.getLogger(__name__)
 
-dataset = Dataset(merit_dem_fixed1=settings.merit_dem_fixed1)
+dataset = Dataset(
+    sources=[
+        ("os50", settings.dem_os50),
+        ("merit", settings.dem_merit),
+    ],
+    base_attribution=["geoboundaries"],
+)
 
 
 @app.get("/", include_in_schema=False)
@@ -47,9 +54,30 @@ def health():
     return PlainTextResponse("OK")
 
 
-class GetElevationResponse(BaseModel):
-    elevation: Optional[float]
-    attribution: list[Attribution]
+class ElevationResponse(BaseModel):
+    elevation: list[float]
+    attribution: dict[str, Attribution]
+
+
+def perform_lookup(lnglats: list[tuple[float, float]]) -> ElevationResponse:
+    elevations, attribution = dataset.lookup(lnglats)
+
+    attribution = list(attribution)
+    attribution.sort()
+    attribution = attributions.lookup(attribution)
+
+    return ElevationResponse(elevation=elevations, attribution=attribution)
+
+
+example_lng = dict((k, {"value": v}) for k, v in [
+    ("Cairn Gorm", -3.643455),
+    ("Lake Granby", -105.85858),
+])
+
+example_lat = dict([(k, {"value": v}) for k, v in [
+    ("Cairn Gorm", 57.116658),
+    ("Lake Granby", 40.160080),
+]])
 
 
 @app.get(
@@ -58,18 +86,14 @@ class GetElevationResponse(BaseModel):
     description="Use the POST method if you have more than one coordinate.",
 )
 def get_elevation(
-        lng: Annotated[float, Query(description="Longitude", openapi_examples={"Lake Granby": {"value": -105.85858}})],
-        lat: Annotated[float, Query(description="Latitude", openapi_examples={"Lake Granby": {"value": 40.160080}})],
-) -> GetElevationResponse:
-    value = dataset.lookup([(lng, lat)])[0]
-    attributions = [attribution.value.root["merit"]]
-    return GetElevationResponse(elevation=value, attribution=attributions)
+        lng: Annotated[float, Query(description="Longitude", openapi_examples=example_lng)],
+        lat: Annotated[float, Query(description="Latitude", openapi_examples=example_lat)],
+) -> ElevationResponse:
+    return perform_lookup([(lng, lat)])
 
 
 class PostElevationRequest(BaseModel):
     coordinates: list[tuple[float, float]]
-
-    # example
 
     model_config = {
         "json_schema_extra": {
@@ -86,19 +110,12 @@ class PostElevationRequest(BaseModel):
     }
 
 
-class PostElevationResponse(BaseModel):
-    elevations: list[float]
-    attributions: list[Attribution]
-
-
 @app.post("/api/v1/elevation", summary="Lookup elevation for multiple coordinates",
           description="Provide a list of coordinates in pairs of longitude, latitude.")
-def post_elevation(req: PostElevationRequest) -> PostElevationResponse:
-    values = dataset.lookup(req.coordinates)
-    attributions = [attribution.value.root["merit"]]
-    return PostElevationResponse(elevations=values, attributions=attributions)
+def post_elevation(req: PostElevationRequest) -> ElevationResponse:
+    return perform_lookup(req.coordinates)
 
 
 @app.get("/api/v1/attribution", summary="Get attribution information")
-def get_attributions() -> attribution.Attributions:
-    return attribution.value
+def get_attributions() -> attributions.Attributions:
+    return attributions.value
