@@ -1,23 +1,20 @@
 import logging
-from typing import Annotated, Sequence
+from typing import Annotated
 
 from fastapi import FastAPI, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, HTMLResponse
 
 import attributions
 import docs
-from attributions import Attribution
 from dataset import Dataset
 from dataset.source import Source
 
 
 class Settings(BaseSettings):
-    dem_merit: str
-    dem_os50: str
-    dem_usgs13: str
+    dem_source: str
 
     model_config = SettingsConfigDict(env_file=".env")
 
@@ -37,15 +34,7 @@ app = FastAPI(
 
 logger = logging.getLogger(__name__)
 
-# TODO: Add referer header, reduce timeout
-
-dataset = Dataset(
-    sources=[
-        Source("os50", settings.dem_os50, scale_factor=0.1),
-        Source("usgs13", settings.dem_usgs13),
-        Source("merit", settings.dem_merit, scale_factor=0.1),
-    ],
-)
+dataset = Dataset(settings.dem_source)
 
 
 @app.get("/", include_in_schema=False)
@@ -59,18 +48,12 @@ def health():
 
 
 class ElevationResponse(BaseModel):
-    elevation: list[float]
-    attribution: dict[str, Attribution]
+    elevation: list[int]
 
 
 def perform_lookup(lnglats: list[tuple[float, float]]) -> ElevationResponse:
-    elevations, attribution = dataset.lookup(lnglats)
-
-    attribution = list(attribution)
-    attribution.sort()
-    attribution = attributions.lookup(attribution)
-
-    return ElevationResponse(elevation=elevations, attribution=attribution)
+    elevations = dataset.lookup(lnglats)
+    return ElevationResponse(elevation=elevations)
 
 
 example_lng = dict((k, {"value": v}) for k, v in [
@@ -121,5 +104,5 @@ def post_elevation(req: PostElevationRequest) -> ElevationResponse:
 
 
 @app.get("/api/v1/attribution", summary="Get attribution information")
-def get_attributions() -> attributions.Attributions:
-    return attributions.value
+def get_attributions():
+    return HTMLResponse(attributions.html)

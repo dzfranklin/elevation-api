@@ -2,8 +2,25 @@
 
 ## Further work
 
-The MERIT seems to perform poorly in very mountainous areas. Maybe because STRM has the same issue? 
-See <https://forum.earthdata.nasa.gov/viewtopic.php?t=2388>. Also a peak and the nearby steep slopes will have
-issues.
+An interesting comparative analysis: https://www.mdpi.com/2072-4292/12/21/3482
 
-Can we special case what we have as the tallest point on a mountain as the actual summit?
+Based on this lets focus on AW3D30 and 3DEP
+
+Try to build a single DEM with nodatafilled and just use that
+
+Interesting: https://forum.step.esa.int/t/difference-between-using-a-dem-of-30m-and-90-m-to-insar/13128/5
+
+## Cost-effective hosting
+
+Let's try a hetzner storage box
+
+TODO: Credit https://kokoalberti.com/articles/experiments-with-the-global-jaxa-alos-world-30m-dem-on-aws-s3/ in attribution
+of https://earth.jaxa.jp/en/data/policy/
+
+What if we use AW3D30 data for just the UK, and 3DEP for the US?
+
+I think jaxa just rounds to the nearest integer, which might be sensible?
+
+---
+
+gdaltindex -gti_filename cop90.gti -lyr_name elevation cop90.gti.gpkg --optfile cop90_filelist.txt
