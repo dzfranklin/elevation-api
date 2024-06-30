@@ -1,6 +1,7 @@
 import logging
 from typing import Annotated
 
+import prometheus_client as prom
 from fastapi import FastAPI, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -10,11 +11,11 @@ from starlette.responses import PlainTextResponse, HTMLResponse
 import attributions
 import docs
 from dataset import Dataset
-from dataset.source import Source
 
 
 class Settings(BaseSettings):
     dem_source: str
+    metrics_port: int = 8101
 
     model_config = SettingsConfigDict(env_file=".env")
 
@@ -32,9 +33,13 @@ app = FastAPI(
     description=docs.description,
 )
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 dataset = Dataset(settings.dem_source)
+
+logger.info(f"Exposing metrics at 0.0.0.0:{settings.metrics_port}/metrics")
+prom.start_http_server(settings.metrics_port)
 
 
 @app.get("/", include_in_schema=False)

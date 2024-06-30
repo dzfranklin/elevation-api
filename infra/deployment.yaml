@@ -12,6 +12,10 @@ spec:
     metadata:
       labels:
         app: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "81"
     spec:
       volumes:
         - name: data
@@ -21,6 +25,8 @@ spec:
         - name: api
           image: ghcr.io/dzfranklin/elevation-api:latest
           env:
+            - name: METRICS_PORT
+              value: "81"
             - name: DEM_SOURCE
               value: /data/index.gti.gpkg
           ports:
