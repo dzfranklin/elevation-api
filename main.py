@@ -57,6 +57,9 @@ class ElevationResponse(BaseModel):
 
 
 def perform_lookup(lnglats: list[tuple[float, float]]) -> ElevationResponse:
+    if len(lnglats) > 10_000:
+        logger.error(f"Too many points. Got {len(lnglats)}")
+        raise RuntimeError("Too many points")
     elevations = dataset.lookup(lnglats)
     return ElevationResponse(elevation=elevations)
 
